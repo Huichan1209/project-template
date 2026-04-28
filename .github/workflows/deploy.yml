@@ -1,0 +1,72 @@
+name: Deploy to Server # 워크플로우 이름
+
+on:
+  push:
+    branches: [ "main" ] # main 브랜치에 push 시 자동으로 워크플로우 실행
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest # 서버 환경에 따라 수정
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      # 배포 secrets가 등록되지 않은 상태에서도 워크플로우가 실패하지 않도록 가드.
+      # HOST / USERNAME / SSH_KEY 가 모두 등록되어야 실제 배포 단계가 실행된다.
+      - name: Check deploy secrets
+        id: secrets
+        run: |
+          if [ -z "${{ secrets.HOST }}" ] || [ -z "${{ secrets.USERNAME }}" ] || [ -z "${{ secrets.SSH_KEY }}" ]; then
+            echo "::warning::배포 secrets(HOST/USERNAME/SSH_KEY)가 등록되지 않아 배포 단계를 건너뜁니다."
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Deploy via SSH
+        if: steps.secrets.outputs.ready == 'true'
+        uses: appleboy/ssh-action@master # 깃허브 액션 라이브러리 사용 (SSH 배포 자동화)
+        with:
+          host: ${{ secrets.HOST }} # 깃허브 시크릿에 배포 서버 호스트(IP or 도메인) 등록
+          username: ${{ secrets.USERNAME }} # 깃허브 시크릿에 배포 서버 username 등록 (root, ...)
+          key: ${{ secrets.SSH_KEY }} # 깃허브 시크릿에 배포 서버 SSH 키 등록 (배포 서버에서 발급)
+          script: |
+            set -euo pipefail
+
+            # === 서버 환경에 맞춰 수정 ===
+            PROJECT_DIR="$HOME/project-template"          # 서버에 git clone 되어 있는 경로
+            FRONTEND_DEPLOY_DIR="/var/www/frontend"        # nginx가 서빙할 정적 파일 경로
+            BACKEND_PM2_NAME="backend"                     # PM2에 등록할 백엔드 앱 이름
+            # =============================
+
+            # nvm으로 Node를 설치한 경우 활성화 (시스템 Node를 쓰면 아래 2줄은 삭제)
+            export NVM_DIR="$HOME/.nvm"
+            [ -s "$NVM_DIR/nvm.sh" ] && . "$NVM_DIR/nvm.sh"
+
+            echo "[1/5] main 브랜치 최신화"
+            cd "$PROJECT_DIR"
+            git fetch --prune origin
+            git reset --hard origin/main
+
+            echo "[2/5] 백엔드 의존성 설치 및 빌드 (NestJS)"
+            cd "$PROJECT_DIR/backend"
+            npm ci
+            npm run build
+
+            echo "[3/5] 백엔드 PM2 재기동"
+            if pm2 describe "$BACKEND_PM2_NAME" > /dev/null 2>&1; then
+              pm2 reload "$BACKEND_PM2_NAME" --update-env
+            else
+              pm2 start dist/main.js --name "$BACKEND_PM2_NAME" --update-env
+            fi
+            pm2 save
+
+            echo "[4/5] 프론트엔드 의존성 설치 및 빌드 (React + Vite)"
+            cd "$PROJECT_DIR/frontend"
+            npm ci
+            npm run build
+
+            echo "[5/5] 정적 파일 배포 (nginx 경로로 동기화)"
+            sudo rsync -av --delete "$PROJECT_DIR/frontend/dist/" "$FRONTEND_DEPLOY_DIR/"
+
+            echo "배포 완료"

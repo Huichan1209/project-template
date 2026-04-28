@@ -1,0 +1,38 @@
+# Dependencies
+node_modules/
+
+# Build outputs
+dist/
+build/
+*.tsbuildinfo
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Env (실제 .env 파일은 커밋 금지, .env.sample만 커밋)
+.env
+.env.*
+!.env.sample
+!.env.example
+
+# IDE / OS
+.idea/
+.vscode/
+!.vscode/settings.json
+!.vscode/extensions.json
+.DS_Store
+Thumbs.db
+
+# Test coverage
+coverage/
+.nyc_output/
+
+# Temp
+*.tmp
+*.temp
+.cache/

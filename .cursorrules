@@ -1,0 +1,142 @@
+# Cursor Rules — CRGDV 프로젝트
+
+## 프로젝트 정보
+- 풀스택 모노레포: backend/(NestJS) + frontend/(React+Vite) + doc/(프로젝트 문서)
+- 언어: TypeScript, DB: MariaDB + TypeORM
+- 문서: 기획·설계·회의록 등 코드 외 산출물은 doc/ 하위에서 관리
+
+## 응답 규칙
+- 항상 한국어로 응답한다.
+- 커밋 메시지도 한국어로 작성한다 (아래 커밋 컨벤션 준수).
+- DB 조회 결과, 빌드 로그, 인코딩 깨짐으로 읽을 수 없는 한글을 임의로 추측하지 않고 사용자에게 확인을 요청한다.
+
+## CI/CD 및 브랜치 전략
+GitHub Actions로 CI/CD를 운영하며 워크플로우는 .github/workflows/ 하위에 정의한다.
+
+자동 배포:
+- main 브랜치에 push(또는 PR 머지)되는 즉시 운영 환경으로 자동 배포된다.
+- main 브랜치에는 최종 개발/테스트가 완료된 소스코드만 올린다.
+- main에 직접 push 금지. 반드시 PR을 통해 머지한다 (브랜치 보호 규칙 적용).
+
+브랜치 전략:
+- main → 운영 배포 브랜치 (항상 안정 상태 유지)
+- feature/<작업명> → 그 외 모든 개발 작업 (작업명은 kebab-case)
+  - 예: feature/login-page, feature/user-crud, feature/db-schema-init
+- 보조 브랜치: fix/<작업명>, chore/<작업명> 등 사용 가능
+- 머지된 작업 브랜치는 삭제한다.
+
+작업 흐름:
+1. 최신 main에서 feature/<작업명> 브랜치를 분기한다.
+2. 개발 + 로컬 테스트(lint, test, build) 완료한다.
+3. PR 생성 → 리뷰/CI 통과 → main 머지.
+4. 머지 즉시 GitHub Actions가 운영 배포한다.
+
+머지 전 체크:
+- npm run lint, test, build가 모두 통과하는가
+- .env 등 민감 정보가 포함되어 있지 않은가
+- 커밋 메시지가 아래 커밋 컨벤션을 따르는가
+- 운영 배포가 즉시 발생함을 인지하고 있는가
+
+## 커밋 컨벤션
+Conventional Commits를 기반으로 하되 메시지 본문은 한국어로 작성한다.
+
+형식: `<type>(<scope>): <subject>` (제목 50자 이내, 마침표 없음, 명령형/현재형)
+
+타입:
+- feat → 새 기능 추가
+- fix → 버그 수정
+- docs → 문서 변경 (doc/, README, 주석 등)
+- style → 포맷/세미콜론/공백 등 의미 없는 변경
+- refactor → 기능/버그 변경 없는 내부 구조 개선
+- perf → 성능 개선
+- test → 테스트 추가/수정
+- build → 빌드 시스템·의존성 변경 (npm, tsconfig, vite 등)
+- ci → CI 설정/스크립트 변경
+- chore → 위에 해당하지 않는 잡일
+- revert → 이전 커밋 되돌리기
+
+스코프 예시: backend, frontend, doc, users, auth, deps, config
+
+본문/footer 규칙:
+- 본문은 한 줄 72자 이내, "왜"를 설명한다.
+- 호환성을 깨는 변경은 footer에 `BREAKING CHANGE: <설명>` 명시.
+- 한 커밋에는 가능하면 한 타입의 변경만 묶는다.
+
+예시:
+- feat(frontend/auth): 로그인 페이지 추가
+- fix(backend/users): 존재하지 않는 사용자 조회 시 NotFoundException 처리
+- docs(planning): 온보딩 플로우 정책서 초안 작성
+- chore(deps): typeorm 0.3.20 적용
+
+## 백엔드 패키지 구조 (Domain-Driven)
+
+backend/src/ 하위 구조:
+- common/ → 전역 공통 (decorators, filters, guards, interceptors, utils)
+- config/ → 환경변수 및 외부 설정
+- database/ → DB 연결·마이그레이션
+- domains/<도메인>/ → 기능별 모듈 (dto/, entities/, controller, service, module)
+- app.module.ts → 루트 모듈
+- main.ts → 엔트리 포인트
+
+### 백엔드 코드 생성 규칙
+- 새 기능은 반드시 domains/<도메인명>/ 하위에 모듈을 생성한다.
+- 도메인 폴더에는 module, controller, service, dto/, entities/를 포함한다.
+- Entity 클래스: PascalCase 단수형(User), 테이블명: 복수형(users).
+- DTO 파일: create-<domain>.dto.ts, update-<domain>.dto.ts 형식.
+- DTO에 class-validator 데코레이터를 반드시 적용한다.
+- API prefix는 /api (setGlobalPrefix 설정됨).
+- 컨트롤러는 라우팅만, 비즈니스 로직은 서비스에 위임한다.
+- Repository는 @InjectRepository()로 주입한다.
+- 존재하지 않는 리소스 접근 시 NotFoundException을 던진다.
+- common/에는 도메인에 종속되지 않는 전역 코드만 배치한다.
+
+## 프론트엔드 패키지 구조 (Feature-Based)
+
+frontend/src/ 하위 구조:
+- assets/ → 정적 파일
+- components/ → 도메인 무관 공통 UI (Layout, Button, Modal 등)
+- constants/ → 공통 상수
+- features/<기능>/ → 기능별 묶음 (components/, hooks/, api.ts)
+- hooks/ → 도메인 무관 공통 훅
+- pages/ → 라우터에 연결될 페이지 컴포넌트
+- routes/ → React Router 설정 (AppRouter.tsx)
+- store/ → 전역 상태 관리
+- styles/ → 전역 스타일 (global.css)
+- utils/ → 유틸리티 함수
+
+### 프론트엔드 코드 생성 규칙
+- 새 기능은 features/<기능명>/ 하위에 components/, hooks/, api.ts를 생성한다.
+- 컴포넌트는 함수형 컴포넌트(function 선언)로 작성한다.
+- 스타일은 CSS Modules (*.module.css)을 사용한다.
+- 컴포넌트 파일: PascalCase(UserForm.tsx), 훅 파일: camelCase(useUsers.ts).
+- import 시 @/ alias를 사용한다 (@/features/..., @/components/...).
+- 페이지 컴포넌트는 UI 배치만 담당, 데이터 로직은 feature 훅에 위임한다.
+- 라우팅 설정은 routes/AppRouter.tsx에 중앙 관리한다.
+- API 호출은 feature의 api.ts에서 axios 인스턴스를 사용한다.
+
+## 문서 패키지 구조 (doc)
+
+doc/ 하위 구조:
+- planning/ → 기획 문서 (요구사항, 화면 정의서, 정책서)
+- architecture/ → 아키텍처·설계 문서 (시스템 구조, 시퀀스, ADR)
+- db/ → ERD, 스키마, 마이그레이션 노트
+- infrastructure/ → 인프라/배포 (서버 세팅, CI/CD 운영 메모)
+- meeting/ → 회의록 (파일명에 YYYY-MM-DD- 접두어 사용)
+- README.md → 문서 인덱스 및 작성 규칙
+
+### 문서 작성 규칙
+- 모든 문서는 Markdown(.md)으로 작성한다. 다이어그램은 가능하면 Mermaid 코드 블록을 활용한다.
+- 파일명은 kebab-case로 작성한다. 시점이 중요한 문서는 YYYY-MM-DD- 접두어를 붙인다.
+- 첨부 이미지·파일은 같은 디렉토리 내 assets/ 하위에 둔다.
+- 새 카테고리를 추가하면 doc/README.md의 디렉토리 구조 표도 함께 갱신한다.
+- 코드 변경을 동반하지 않는 기획·정책·결정 사항은 반드시 doc/ 하위에 산출물을 남긴다.
+
+## 금지 사항
+- any 타입 사용 최소화, 타입을 명시적으로 정의한다.
+- console.log를 프로덕션 코드에 남기지 않는다.
+- 컴포넌트 내에서 직접 API를 호출하지 않는다.
+- 컨트롤러에 비즈니스 로직을 작성하지 않는다.
+- .env 파일을 커밋하지 않는다.
+- .env의 실제 값을 코드에 하드코딩하지 않는다.
+- main 브랜치에 직접 push 금지 (반드시 feature/<작업명> → PR → 머지).
+- 개발 중이거나 테스트가 끝나지 않은 코드를 main에 머지하지 않는다 (머지 즉시 운영 배포됨).
