@@ -92,9 +92,9 @@ sudo mysql_secure_installation
 DB와 애플리케이션 사용자 생성:
 
 ```sql
-CREATE DATABASE crgdv CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-CREATE USER 'crgdv'@'localhost' IDENTIFIED BY '<강한 비밀번호>';
-GRANT ALL PRIVILEGES ON crgdv.* TO 'crgdv'@'localhost';
+CREATE DATABASE changeme CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+CREATE USER 'changeme'@'localhost' IDENTIFIED BY '<강한 비밀번호>';
+GRANT ALL PRIVILEGES ON changeme.* TO 'changeme'@'localhost';
 FLUSH PRIVILEGES;
 ```
 
@@ -109,7 +109,7 @@ sudo apt install -y nginx
 sudo systemctl enable --now nginx
 ```
 
-`/etc/nginx/sites-available/crgdv`:
+`/etc/nginx/sites-available/changeme`:
 
 ```nginx
 server {
@@ -141,7 +141,7 @@ server {
 활성화:
 
 ```bash
-sudo ln -s /etc/nginx/sites-available/crgdv /etc/nginx/sites-enabled/
+sudo ln -s /etc/nginx/sites-available/changeme /etc/nginx/sites-enabled/
 sudo rm -f /etc/nginx/sites-enabled/default
 sudo nginx -t
 sudo systemctl reload nginx
@@ -291,8 +291,8 @@ rsync -av --delete dist/ /var/www/frontend/
 
 - [ ] 배포 사용자 + SSH 키 등록 완료
 - [ ] Node.js (LTS) + PM2 설치, `pm2 startup` 등록
-- [ ] MariaDB 설치 및 `crgdv` DB/사용자 생성
-- [ ] nginx 설치 + `sites-available/crgdv` 설정 + reload
+- [ ] MariaDB 설치 및 DB/사용자 생성
+- [ ] nginx 설치 + `sites-available/changeme` 설정 + reload
 - [ ] `~/project-template` git clone
 - [ ] `backend/.env`, `frontend/.env` 작성
 - [ ] `/var/www/frontend` 디렉토리 생성 + 권한 설정

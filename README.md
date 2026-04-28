@@ -1,5 +1,3 @@
-# CRGDV 프로젝트
-
 NestJS(백엔드) + React+Vite(프론트엔드) 풀스택 TypeScript 모노레포 프로젝트.
 
 ## 기술 스택

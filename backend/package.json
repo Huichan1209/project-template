@@ -1,7 +1,7 @@
 {
   "name": "backend",
   "version": "0.0.1",
-  "description": "CRGDV NestJS 백엔드",
+  "description": "NestJS 백엔드",
   "private": true,
   "license": "UNLICENSED",
   "scripts": {

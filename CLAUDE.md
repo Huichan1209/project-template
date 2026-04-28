@@ -1,4 +1,4 @@
-# CLAUDE.md — CRGDV 프로젝트
+# CLAUDE.md
 
 이 파일은 Claude Code가 이 저장소에서 작업할 때 참고해야 하는 프로젝트 컨텍스트이다.
 
